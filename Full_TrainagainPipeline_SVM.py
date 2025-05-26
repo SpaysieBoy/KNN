@@ -36,11 +36,10 @@ class BertEmbeddingTransformer(BaseEstimator, TransformerMixin):
                     padding='max_length',
                     max_length=self.max_length
                 )
-                # Verplaats input tensors naar dezelfde device als het model
                 inputs = {k: v.to(self.device) for k, v in inputs.items()}
                 outputs = self.model(**inputs)
                 cls_embedding = outputs.last_hidden_state[:, 0, :].squeeze(0)
-                embeddings.append(cls_embedding.cpu().numpy())  # Terug naar CPU voor numpy
+                embeddings.append(cls_embedding.cpu().numpy())
         return np.vstack(embeddings)
 
 # === Externe testbestanden
@@ -52,7 +51,7 @@ external_test_paths = {
 
 # === Hoofdloop over 10 runs
 for i in tqdm(range(10), desc="Runs voltooid"):
-    input_train_path = f"Text_File/Analyses/Subsets/generated_reviews_papagAIo1.0.csv"
+    input_train_path = "Text_File/Analyses/Subsets/generated_reviews_papagAIo1.0.csv"
     df_pap = pd.read_csv(input_train_path, sep=";")
     df_pap.columns = ['Sentiment', 'Review']
     df_pap['Review'] = df_pap['Review'].astype(str).str.strip().str.replace('"""', '')
@@ -63,12 +62,14 @@ for i in tqdm(range(10), desc="Runs voltooid"):
 
     X_pap = df_pap['Review']
     y_pap = df_pap['Sentiment']
-    X_pap_train, X_pap_test, y_pap_train, y_pap_test = train_test_split(X_pap, y_pap, test_size=0.3, stratify=y_pap, random_state=42+i)
+    X_pap_train, X_pap_test, y_pap_train, y_pap_test = train_test_split(
+        X_pap, y_pap, test_size=0.3, stratify=y_pap, random_state=42 + i
+    )
 
-    # === Loop over elke extra dataset
+    output_path = f"Dannyfolder/Output/PapagAIo_ALL_EXTERNALS_run{i+1}.txt"
+    all_results = []
+
     for ext_label, ext_path in external_test_paths.items():
-        output_path = f"Dannyfolder/Output/PapagAIo+{ext_label}_SVM_pipeline_run{i+1}.txt"
-
         df_ext = pd.read_csv(ext_path)
         df_ext.columns = ['Sentiment', 'Review']
         df_ext['Review'] = df_ext['Review'].astype(str).str.strip().str.replace('"""', '')
@@ -79,11 +80,10 @@ for i in tqdm(range(10), desc="Runs voltooid"):
 
         X_ext = df_ext['Review']
         y_ext = df_ext['Sentiment']
+        X_ext_train, X_ext_test, y_ext_train, y_ext_test = train_test_split(
+            X_ext, y_ext, test_size=0.8, stratify=y_ext, random_state=42 + i
+        )
 
-        # Split deze externe dataset: 20% toevoegen aan training, 80% apart testen
-        X_ext_train, X_ext_test, y_ext_train, y_ext_test = train_test_split(X_ext, y_ext, test_size=0.8, stratify=y_ext, random_state=42+i)
-
-        # Combineer training data (PapagAIo + extra 20%)
         X_combined_train = pd.concat([X_pap_train, X_ext_train])
         y_combined_train = pd.concat([y_pap_train, y_ext_train])
 
@@ -91,10 +91,9 @@ for i in tqdm(range(10), desc="Runs voltooid"):
         class_weights = compute_class_weight(class_weight='balanced', classes=classes, y=y_combined_train)
         class_weight_dict = dict(zip(classes, class_weights))
 
-        # === Verse pipeline
         pipeline = Pipeline([
             ('bert', BertEmbeddingTransformer(model_name='emilyalsentzer/Bio_ClinicalBERT')),
-            ('clf', SVC(class_weight=class_weight_dict, C=1.0, probability=True, kernel='linear', random_state=42+i))
+            ('clf', SVC(class_weight=class_weight_dict, C=1.0, probability=True, kernel='linear', random_state=42 + i))
         ])
         pipeline.fit(X_combined_train, y_combined_train)
 
@@ -132,15 +131,18 @@ for i in tqdm(range(10), desc="Runs voltooid"):
 
         # === Combineer resultaten
         results = [
-            f"=== Run {i+1} met extra dataset: {ext_label} ===\n",
+            f"\n\n=== Run {i+1} met extra dataset: {ext_label} ===\n",
             "\n--- Evaluatie op PapagAIo testset ---\n", report_pap, conf_matrix_pap, auc_pap,
             f"\n--- Evaluatie op {ext_label} (80% test) ---\n", report_ext, conf_matrix_ext, auc_ext
         ]
+        all_results.extend(results)
 
-        # === Opslaan
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        with open(output_path, 'w', encoding='utf-8') as f:
-            for line in results:
-                f.write(line)
+        print(f"✅ Run {i+1} met {ext_label}: resultaten toegevoegd")
 
-        print(f"✅ Run {i+1} met {ext_label}: resultaat opgeslagen in {output_path}")
+    # === Schrijf alles in één bestand
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    with open(output_path, 'w', encoding='utf-8') as f:
+        for line in all_results:
+            f.write(line)
+
+    print(f"📝 Alle resultaten voor run {i+1} opgeslagen in: {output_path}")
