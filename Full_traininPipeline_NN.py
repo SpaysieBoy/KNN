@@ -14,8 +14,9 @@ from sklearn.base import BaseEstimator, TransformerMixin
 # === BERT-embeddings transformer
 class BertEmbeddingTransformer(BaseEstimator, TransformerMixin):
     def __init__(self, model_name='emilyalsentzer/Bio_ClinicalBERT', max_length=512):
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModel.from_pretrained(model_name)
+        self.model = AutoModel.from_pretrained(model_name).to(self.device)
         self.max_length = max_length
 
     def fit(self, X, y=None):
@@ -33,8 +34,9 @@ class BertEmbeddingTransformer(BaseEstimator, TransformerMixin):
                     padding='max_length',
                     max_length=self.max_length
                 )
+                inputs = {key: val.to(self.device) for key, val in inputs.items()}
                 outputs = self.model(**inputs)
-                cls_embedding = outputs.last_hidden_state[:, 0, :].squeeze(0)
+                cls_embedding = outputs.last_hidden_state[:, 0, :].squeeze(0).cpu()
                 embeddings.append(cls_embedding.numpy())
         return np.vstack(embeddings)
 
