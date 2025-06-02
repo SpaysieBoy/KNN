@@ -1,0 +1,9 @@
+=== STATISTISCHE SAMENVATTING OVER 10 RUNS ===
+PapagAIo: Mean Accuracy = 0.7556, Std Dev = 0.0552
+Feedback: Mean Accuracy = 0.6853, Std Dev = 0.0573
+SecondHospital: Mean Accuracy = 0.6352, Std Dev = 0.0445
+Amazon: Mean Accuracy = 0.7849, Std Dev = 0.0395
+T-test PapagAIo vs Feedback: t = 2.7942, p = 0.011995
+T-test PapagAIo vs SecondHospital: t = 5.3703, p = 0.000049
+T-test PapagAIo vs Amazon: t = -1.3667, p = 0.190286
+T-test Feedback vs SecondHospital: t = 2.1862, p = 0.043110

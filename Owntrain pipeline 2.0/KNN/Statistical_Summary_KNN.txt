@@ -1,0 +1,9 @@
+=== STATISTISCHE SAMENVATTING KNN OVER 10 RUNS ===
+PapagAIo: Mean Accuracy = 0.8589, Std Dev = 0.0454
+Feedback: Mean Accuracy = 0.6765, Std Dev = 0.0519
+SecondHospital: Mean Accuracy = 0.7286, Std Dev = 0.0293
+Amazon: Mean Accuracy = 0.8546, Std Dev = 0.0069
+T-test PapagAIo vs Feedback: t = 8.3697, p = 0.000000
+T-test PapagAIo vs SecondHospital: t = 7.6275, p = 0.000001
+T-test PapagAIo vs Amazon: t = 0.2940, p = 0.775153
+T-test Feedback vs SecondHospital: t = -2.7647, p = 0.015025

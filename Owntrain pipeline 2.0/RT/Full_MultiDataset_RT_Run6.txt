@@ -1,0 +1,69 @@
+=== Run 6 Evaluaties ===
+--- Evaluatie PapagAIo (70/30 split) ---
+              precision    recall  f1-score   support
+
+    Negatief       0.68      0.60      0.64        45
+    Positief       0.64      0.71      0.67        45
+
+    accuracy                           0.66        90
+   macro avg       0.66      0.66      0.65        90
+weighted avg       0.66      0.66      0.65        90
+
+Confusion Matrix:
+          Negatief  Positief
+Negatief        27        18
+Positief        13        32
+AUC-ROC: 0.6556
+
+
+--- Evaluatie Feedback (70/30 split) ---
+              precision    recall  f1-score   support
+
+    Negatief       0.67      0.22      0.33         9
+    Positief       0.77      0.96      0.86        25
+
+    accuracy                           0.76        34
+   macro avg       0.72      0.59      0.60        34
+weighted avg       0.75      0.76      0.72        34
+
+Confusion Matrix:
+          Negatief  Positief
+Negatief         2         7
+Positief         1        24
+AUC-ROC: 0.5911
+
+
+--- Evaluatie SecondHospital (70/30 split) ---
+              precision    recall  f1-score   support
+
+    Negatief       0.38      0.47      0.42        17
+    Neutraal       0.12      0.08      0.10        12
+    Positief       0.76      0.76      0.76        62
+
+    accuracy                           0.62        91
+   macro avg       0.42      0.44      0.43        91
+weighted avg       0.60      0.62      0.61        91
+
+Confusion Matrix:
+          Negatief  Neutraal  Positief
+Negatief         8         0         9
+Neutraal         5         1         6
+Positief         8         7        47
+
+
+--- Evaluatie Amazon (70/30 split) ---
+              precision    recall  f1-score   support
+
+    Negatief       0.14      0.19      0.16        16
+    Positief       0.87      0.83      0.85       103
+
+    accuracy                           0.74       119
+   macro avg       0.51      0.51      0.50       119
+weighted avg       0.77      0.74      0.75       119
+
+Confusion Matrix:
+          Negatief  Positief
+Negatief         3        13
+Positief        18        85
+AUC-ROC: 0.5064
+
