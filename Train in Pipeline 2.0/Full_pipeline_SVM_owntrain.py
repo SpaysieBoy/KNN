@@ -13,11 +13,15 @@ import torch
 from sklearn.base import BaseEstimator, TransformerMixin
 from scipy.stats import ttest_ind
 
-# === BERT-embeddings transformer
+# === Controleer of er een CUDA-device beschikbaar is ===
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f"Gebruikt device: {device}")
+
+# === BERT-embeddings transformer met CUDA-ondersteuning ===
 class BertEmbeddingTransformer(BaseEstimator, TransformerMixin):
     def __init__(self, model_name='emilyalsentzer/Bio_ClinicalBERT', max_length=512):
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModel.from_pretrained(model_name)
+        self.model = AutoModel.from_pretrained(model_name).to(device)
         self.max_length = max_length
 
     def fit(self, X, y=None):
@@ -28,6 +32,7 @@ class BertEmbeddingTransformer(BaseEstimator, TransformerMixin):
         embeddings = []
         with torch.no_grad():
             for text in X:
+                # Tokenize tekst naar PyTorch-tensors
                 inputs = self.tokenizer(
                     text,
                     return_tensors='pt',
@@ -35,12 +40,18 @@ class BertEmbeddingTransformer(BaseEstimator, TransformerMixin):
                     padding='max_length',
                     max_length=self.max_length
                 )
+                # Verplaats alle input-tensors naar dezelfde device (GPU of CPU)
+                inputs = {k: v.to(device) for k, v in inputs.items()}
+
                 outputs = self.model(**inputs)
-                cls_emb = outputs.last_hidden_state[:, 0, :].squeeze(0)
-                embeddings.append(cls_emb.cpu().numpy())
+                # Haal CLS-embedding op en verplaats terug naar CPU voordat je naar numpy converteert
+                cls_emb = outputs.last_hidden_state[:, 0, :].squeeze(0).cpu()
+                embeddings.append(cls_emb.numpy())
+
         return np.vstack(embeddings)
 
-# === Dataset locations
+
+# === Datasetlocaties ===
 dataset_paths = {
     'PapagAIo': 'Text_File/Analyses/Subsets/generated_reviews_papagAIo1.0.csv',
     'Feedback': 'Text_File/Analyses/Subsets/Feedback_by_hands_sentiment.csv',
@@ -51,10 +62,11 @@ dataset_paths = {
 # Store accuracies per dataset over runs
 accuracies = {name: [] for name in dataset_paths}
 
-# === Main loop over 10 runs and all datasets
+# === Hoofdloop over 10 runs en alle datasets ===
 for i in tqdm(range(10), desc="Total runs"):  # i = 0..9
     run_results = []
     run_results.append(f"=== Run {i+1} Evaluaties ===")
+
     for name, path in dataset_paths.items():
         # Load data
         sep = ';' if name == 'PapagAIo' else ','
@@ -68,8 +80,10 @@ for i in tqdm(range(10), desc="Total runs"):  # i = 0..9
 
         # Train/test split (70/30)
         X_train, X_test, y_train, y_test = train_test_split(
-            df['Review'], df['Sentiment'], test_size=0.3,
-            stratify=df['Sentiment'], random_state=42 + i
+            df['Review'], df['Sentiment'],
+            test_size=0.3,
+            stratify=df['Sentiment'],
+            random_state=42 + i
         )
 
         # Compute class weights
@@ -80,8 +94,13 @@ for i in tqdm(range(10), desc="Total runs"):  # i = 0..9
         # Pipeline and train
         pipeline = Pipeline([
             ('bert', BertEmbeddingTransformer()),
-            ('svc', SVC(kernel='linear', C=1.0, class_weight=cw,
-                        probability=True, random_state=42 + i))
+            ('svc', SVC(
+                kernel='linear',
+                C=1.0,
+                class_weight=cw,
+                probability=True,
+                random_state=42 + i
+            ))
         ])
         pipeline.fit(X_train, y_train)
 
@@ -101,6 +120,7 @@ for i in tqdm(range(10), desc="Total runs"):  # i = 0..9
 
         # AUC for binary
         if len(classes) == 2:
+            # predict_proba draait in dit geval op CPU omdat de input-embeddings reeds op CPU staan
             y_scores = pipeline.predict_proba(X_test)[:, 1]
             y_bin = LabelBinarizer().fit_transform(y_test).ravel()
             auc = roc_auc_score(y_bin, y_scores)
@@ -114,7 +134,7 @@ for i in tqdm(range(10), desc="Total runs"):  # i = 0..9
         f.write("\n".join(run_results))
     print(f"Saved results for Run {i+1}: {save_path}")
 
-# === After all runs: save separate statistical summary
+# === After all runs: save separate statistical summary ===
 summary_lines = ["=== STATISTISCHE SAMENVATTING OVER 10 RUNS ==="]
 # Mean and std per dataset
 for name, vals in accuracies.items():
