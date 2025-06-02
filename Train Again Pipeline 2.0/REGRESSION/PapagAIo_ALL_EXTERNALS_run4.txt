@@ -1,0 +1,117 @@
+
+
+=== Run 4 met extra dataset: Feedback ===
+
+--- Evaluatie op PapagAIo testset ---
+              precision    recall  f1-score   support
+
+    Negatief       0.95      0.91      0.93        45
+    Positief       0.91      0.96      0.93        45
+
+    accuracy                           0.93        90
+   macro avg       0.93      0.93      0.93        90
+weighted avg       0.93      0.93      0.93        90
+
+
+Confusion Matrix (PapagAIo):
+          Negatief  Positief
+Negatief        41         4
+Positief         2        43
+
+AUC-ROC score (PapagAIo): 0.9951
+--- Evaluatie op Feedback (externe testset) ---
+              precision    recall  f1-score   support
+
+    Negatief       0.50      0.50      0.50         6
+    Positief       0.81      0.81      0.81        16
+
+    accuracy                           0.73        22
+   macro avg       0.66      0.66      0.66        22
+weighted avg       0.73      0.73      0.73        22
+
+
+Confusion Matrix (Feedback):
+          Negatief  Positief
+Negatief         3         3
+Positief         3        13
+
+AUC-ROC score (Feedback): 0.8542
+Accuracy PapagAIo: 0.9333
+Accuracy Feedback: 0.7273
+
+=== Run 4 met extra dataset: SecondHospital ===
+
+--- Evaluatie op PapagAIo testset ---
+              precision    recall  f1-score   support
+
+    Negatief       0.98      0.96      0.97        45
+    Positief       0.96      0.98      0.97        45
+
+    accuracy                           0.97        90
+   macro avg       0.97      0.97      0.97        90
+weighted avg       0.97      0.97      0.97        90
+
+
+Confusion Matrix (PapagAIo):
+          Negatief  Neutraal  Positief
+Negatief        43         0         2
+Neutraal         0         0         0
+Positief         1         0        44
+--- Evaluatie op SecondHospital (externe testset) ---
+              precision    recall  f1-score   support
+
+    Negatief       0.60      0.63      0.62        41
+    Neutraal       0.43      0.56      0.48        27
+    Positief       0.89      0.83      0.86       143
+
+    accuracy                           0.76       211
+   macro avg       0.64      0.67      0.66       211
+weighted avg       0.78      0.76      0.77       211
+
+
+Confusion Matrix (SecondHospital):
+          Negatief  Neutraal  Positief
+Negatief        26         6         9
+Neutraal         7        15         5
+Positief        10        14       119
+Accuracy PapagAIo: 0.9667
+Accuracy SecondHospital: 0.7583
+
+=== Run 4 met extra dataset: Amazon ===
+
+--- Evaluatie op PapagAIo testset ---
+              precision    recall  f1-score   support
+
+    Negatief       0.96      0.98      0.97        45
+    Positief       0.98      0.96      0.97        45
+
+    accuracy                           0.97        90
+   macro avg       0.97      0.97      0.97        90
+weighted avg       0.97      0.97      0.97        90
+
+
+Confusion Matrix (PapagAIo):
+          Negatief  Positief
+Negatief        44         1
+Positief         2        43
+
+AUC-ROC score (PapagAIo): 0.9960
+--- Evaluatie op Amazon (externe testset) ---
+              precision    recall  f1-score   support
+
+    Negatief       0.40      0.43      0.41        42
+    Positief       0.91      0.90      0.90       262
+
+    accuracy                           0.83       304
+   macro avg       0.65      0.66      0.66       304
+weighted avg       0.84      0.83      0.83       304
+
+
+Confusion Matrix (Amazon):
+          Negatief  Positief
+Negatief        18        24
+Positief        27       235
+
+AUC-ROC score (Amazon): 0.7124
+Accuracy PapagAIo: 0.9667
+Accuracy Amazon: 0.8322

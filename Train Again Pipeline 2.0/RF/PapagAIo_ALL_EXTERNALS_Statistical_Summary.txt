@@ -1,0 +1,16 @@
+=== STATISTISCHE SAMENVATTING OVER 10 RUNS ===
+
+--- Vergelijking PapagAIo vs Feedback ---
+PapagAIo (mean acc)= 0.8422, std= 0.0362
+Feedback (mean acc)= 0.6818, std= 0.0958
+Gepaarde t-test: t-stat= 5.4741, p-value= 0.000393
+
+--- Vergelijking PapagAIo vs SecondHospital ---
+PapagAIo (mean acc)= 0.8522, std= 0.0477
+SecondHospital (mean acc)= 0.7000, std= 0.0160
+Gepaarde t-test: t-stat= 8.7373, p-value= 0.000011
+
+--- Vergelijking PapagAIo vs Amazon ---
+PapagAIo (mean acc)= 0.8344, std= 0.0243
+Amazon (mean acc)= 0.8586, std= 0.0071
+Gepaarde t-test: t-stat= -3.3264, p-value= 0.008849
