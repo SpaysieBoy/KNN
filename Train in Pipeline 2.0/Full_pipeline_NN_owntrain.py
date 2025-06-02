@@ -14,11 +14,16 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from scipy.stats import ttest_ind
 from torch.utils.data import TensorDataset, DataLoader
 
-# === BERT-embeddings transformer ===
+# === Controleer of er een CUDA-device beschikbaar is ===
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f"Gebruikt device: {device}")
+
+# === BERT-embeddings transformer met CUDA-ondersteuning ===
 class BertEmbeddingTransformer(BaseEstimator, TransformerMixin):
     def __init__(self, model_name='emilyalsentzer/Bio_ClinicalBERT', max_length=512):
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModel.from_pretrained(model_name)
+        # Verplaats het BERT-model meteen naar het gekozen device
+        self.model = AutoModel.from_pretrained(model_name).to(device)
         self.max_length = max_length
 
     def fit(self, X, y=None):
@@ -36,13 +41,17 @@ class BertEmbeddingTransformer(BaseEstimator, TransformerMixin):
                     padding='max_length',
                     max_length=self.max_length
                 )
+                # Verplaats alle input-tensors naar dezelfde device (GPU of CPU)
+                inputs = {k: v.to(device) for k, v in inputs.items()}
+
                 outputs = self.model(**inputs)
-                cls_emb = outputs.last_hidden_state[:, 0, :].squeeze(0)
-                embeddings.append(cls_emb.cpu().numpy())
+                # Haal de CLS-embedding op en verplaats terug naar CPU voordat je naar numpy converteert
+                cls_emb = outputs.last_hidden_state[:, 0, :].squeeze(0).cpu()
+                embeddings.append(cls_emb.numpy())
+
         return np.vstack(embeddings)
 
-
-# === Torch-based Neural Network Classifier ===
+# === Torch-based Neural Network Classifier met CUDA-ondersteuning ===
 class TorchNNClassifier(BaseEstimator):
     def __init__(self,
                  input_dim=768,
@@ -53,10 +62,10 @@ class TorchNNClassifier(BaseEstimator):
                  class_weight=None,
                  random_state=0):
         """
-        A simple feedforward neural network classifier using PyTorch.
-        - input_dim: dimensionality van de BERT-embeddings (gewoonlijk 768).
+        Een eenvoudige feedforward neural network classifier met PyTorch.
+        - input_dim: dimension van de BERT-embeddings (gewoonlijk 768).
         - hidden_dim: aantal neuronen in de verborgen laag.
-        - epochs: aantal trainings-epoches.
+        - epochs: aantal trainings-epochs.
         - batch_size: batchgrootte voor DataLoader.
         - lr: learning rate voor de optimizer.
         - class_weight: dict mapping string-labels naar gewichten voor CrossEntropyLoss.
@@ -75,17 +84,15 @@ class TorchNNClassifier(BaseEstimator):
         X: numpy array van shape (n_samples, input_dim)
         y: array-like met string-labels
         """
-        # Zet de labels om naar gehele indices
+        # Zet de labels om naar integer indices
         self.label_encoder_ = LabelEncoder()
         y_int = self.label_encoder_.fit_transform(y)
         num_classes = len(self.label_encoder_.classes_)
 
-        # Bepaal class weights als Tensor, in volgorde van label_encoder_.classes_
+        # Bepaal class weights als Tensor op het device
         if self.class_weight is not None:
-            weight_list = []
-            for cls_label in self.label_encoder_.classes_:
-                weight_list.append(self.class_weight[cls_label])
-            weight_tensor = torch.tensor(weight_list, dtype=torch.float)
+            weight_list = [self.class_weight[cls] for cls in self.label_encoder_.classes_]
+            weight_tensor = torch.tensor(weight_list, dtype=torch.float, device=device)
         else:
             weight_tensor = None
 
@@ -106,17 +113,19 @@ class TorchNNClassifier(BaseEstimator):
         # Zet seed voor reproduceerbaarheid
         torch.manual_seed(self.random_state)
 
-        # Instantieer model, verliesfunctie en optimizer
-        self.model_ = Net(self.input_dim, self.hidden_dim, num_classes)
+        # Instantieer model en verplaats naar device
+        self.model_ = Net(self.input_dim, self.hidden_dim, num_classes).to(device)
+
+        # Kies CrossEntropyLoss met gewichten indien opgegeven
         if weight_tensor is not None:
-            criterion = nn.CrossEntropyLoss(weight=weight_tensor.to(torch.float))
+            criterion = nn.CrossEntropyLoss(weight=weight_tensor)
         else:
             criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.Adam(self.model_.parameters(), lr=self.lr)
 
-        # Zet data om naar Tensors en maak DataLoader
-        X_tensor = torch.tensor(X, dtype=torch.float)
-        y_tensor = torch.tensor(y_int, dtype=torch.long)
+        # Zet data om naar tensors en verplaats naar device
+        X_tensor = torch.tensor(X, dtype=torch.float).to(device)
+        y_tensor = torch.tensor(y_int, dtype=torch.long).to(device)
         dataset = TensorDataset(X_tensor, y_tensor)
         loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
 
@@ -134,9 +143,9 @@ class TorchNNClassifier(BaseEstimator):
 
     def predict(self, X):
         """
-        Voorspelt labels (originele string-vormen) voor X.
+        Voorspelt labels (oorspronkelijke string-vormen) voor X.
         """
-        X_tensor = torch.tensor(X, dtype=torch.float)
+        X_tensor = torch.tensor(X, dtype=torch.float).to(device)
         self.model_.eval()
         with torch.no_grad():
             logits = self.model_(X_tensor)
@@ -147,13 +156,12 @@ class TorchNNClassifier(BaseEstimator):
         """
         Retourneert een numpy array van shape (n_samples, n_classes) met kansschattingen.
         """
-        X_tensor = torch.tensor(X, dtype=torch.float)
+        X_tensor = torch.tensor(X, dtype=torch.float).to(device)
         self.model_.eval()
         with torch.no_grad():
             logits = self.model_(X_tensor)
             probs = torch.softmax(logits, dim=1).cpu().numpy()
         return probs
-
 
 # === Dataset locaties ===
 dataset_paths = {
@@ -179,7 +187,6 @@ for i in tqdm(range(10), desc="Total runs"):  # i = 0..9
         df['Review'] = df['Review'].astype(str).str.strip().str.replace('"""', '', regex=False)
         df['Sentiment'] = df['Sentiment'].str.strip()
         df = df[df['Review'].str.len() > 10]
-        # Indien te weinig "Neutraal"-voorbeelden, drop deze klasse
         if df['Sentiment'].value_counts().get('Neutraal', 0) < 10:
             df = df[df['Sentiment'] != 'Neutraal']
 
@@ -234,16 +241,15 @@ for i in tqdm(range(10), desc="Total runs"):  # i = 0..9
         run_results.append("\n")
 
     # --- Per-run bestand opslaan ---
-    save_path = f"Text_File/Train in pipeline 2.0/REGRESSION/Full_MultiDataset_NN_Run{i+1}.txt"
+    save_path = f"Text_File/Train in pipeline 2.0/REGRESSION/Full_MultiDataset_NN_CUDA_Run{i+1}.txt"
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     with open(save_path, 'w', encoding='utf-8') as f:
         f.write("\n".join(run_results))
     print(f"Saved results for Run {i+1}: {save_path}")
 
-
-# === Na alle runs: statische samenvatting opslaan ===
+# === Na alle runs: statistische samenvatting opslaan ===
 summary_lines = ["=== STATISTISCHE SAMENVATTING OVER 10 RUNS ==="]
-# Gemiddelde en std per dataset
+# Gemiddelde en standaardafwijking per dataset
 for name, vals in accuracies.items():
     mean_acc = np.mean(vals)
     std_acc = np.std(vals, ddof=1)
@@ -260,8 +266,8 @@ for a, b in pairs:
     t_stat, p_val = ttest_ind(accuracies[a], accuracies[b], equal_var=False)
     summary_lines.append(f"T-test {a} vs {b}: t = {t_stat:.4f}, p = {p_val:.6f}")
 
-# Sla de samenvatting op
-summary_path = f"Text_File/Train in pipeline 2.0/REGRESSION/Statistical_Summary_NN.txt"
+# Samenvatting wegschrijven
+summary_path = f"Text_File/Train in pipeline 2.0/REGRESSION/Statistical_Summary_NN_CUDA.txt"
 os.makedirs(os.path.dirname(summary_path), exist_ok=True)
 with open(summary_path, 'w', encoding='utf-8') as f:
     f.write("\n".join(summary_lines))
